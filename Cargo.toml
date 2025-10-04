@@ -15,6 +15,6 @@ time = { version = "0.3", features = ["formatting", "local-offset", "macros"]}
 clap = { version = "4.5.48", default-features = false, features = ["std", "derive"] }
 structopt = "0.3"
 ctrlc = "3.4"
-object = "0.36"
+object = "0.37"
 [build-dependencies]
 libbpf-cargo = "0.24"
