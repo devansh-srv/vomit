@@ -1,8 +1,8 @@
-# **libbpf-rs-starter-template**
+# **vomit**
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
-[![Build and publish](https://github.com/eunomia-bpf/libbpf-rs-starter-template/actions/workflows/publish.yml/badge.svg)](https://github.com/eunomia-bpf/libbpf-rs-starter-template/actions/workflows/publish.yml)
-![GitHub stars](https://img.shields.io/github/stars/eunomia-bpf/libbpf-rs-starter-template?style=social)
+[![Build and publish](https://github.com/devansh-srv/vomit/actions/workflows/publish.yml/badge.svg)](https://github.com/devansh-srv/vomit/actions/workflows/publish.yml)
+![GitHub stars](https://img.shields.io/github/stars/devansh-srv/vomit?style=social)
 
 Welcome to the **`libbpf-rs-starter-template`**! This project template is designed to help you quickly start
 developing eBPF projects using libbpf-rs in rust and go. The template provides a solid starting point with a Makefile,
