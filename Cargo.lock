@@ -394,7 +394,7 @@ dependencies = [
  "anyhow",
  "cargo_metadata",
  "clap 4.5.48",
- "libbpf-rs 0.25.0",
+ "libbpf-rs",
  "libbpf-sys",
  "memmap2",
  "serde",
@@ -402,18 +402,6 @@ dependencies = [
  "tempfile",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "libbpf-rs"
-version = "0.24.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93edd9cd673087fa7518fd63ad6c87be2cd9b4e35034b1873f3e3258c018275b"
-dependencies = [
- "bitflags 2.6.0",
- "libbpf-sys",
- "libc",
- "vsprintf",
 ]
 
 [[package]]
@@ -929,7 +917,7 @@ dependencies = [
  "clap 4.5.48",
  "ctrlc",
  "libbpf-cargo",
- "libbpf-rs 0.24.8",
+ "libbpf-rs",
  "libc",
  "object",
  "plain",
