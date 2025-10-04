@@ -67,11 +67,11 @@ jobs:
       run:  make build
 
     - name: Publish
-      if:   github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository_owner == 'eunomia-bpf'
+      if:   github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository_owner == 'devansh-srv'
       uses: softprops/action-gh-release@v1
       with:
           files: |
-            target/release/runqslower
+            target/release/vomit
           prerelease: false
           tag_name: ${{ steps.set_version.outputs.result }}
           generate_release_notes: true
