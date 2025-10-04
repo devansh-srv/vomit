@@ -17,4 +17,4 @@ structopt = "0.3"
 ctrlc = "3.4"
 object = "0.37"
 [build-dependencies]
-libbpf-cargo = "0.24"
+libbpf-cargo = "0.25"
