@@ -10,3 +10,13 @@ edition = "2024"
 crossterm = "0.28.1"
 ratatui = "0.29.0"
 color-eyre = "0.6.3"
+anyhow = "1.0"
+libbpf-rs = "0.24"
+libc = "0.2"
+structopt = "0.3"
+ctrlc = "3.4"
+object = "0.36"
+plain = "0.2"
+
+[build-dependencies]
+libbpf-cargo = "0.24"
