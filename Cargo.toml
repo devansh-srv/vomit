@@ -1,0 +1,20 @@
+[package]
+name = "vomit"
+version = "0.1.0"
+description = "Some AI slop for trying ratatui"
+authors = ["Devansh Srivastava <devansh.srv@gmail.com>"]
+license = "MIT"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0"
+libbpf-rs = "0.24"
+libc = "0.2"
+plain = "0.2"
+time = { version = "0.3", features = ["formatting", "local-offset", "macros"]}
+clap = { version = "4.5.48", default-features = false, features = ["std", "derive"] }
+structopt = "0.3"
+ctrlc = "3.4"
+object = "0.36"
+[build-dependencies]
+libbpf-cargo = "0.24"
