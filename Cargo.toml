@@ -12,7 +12,7 @@ libbpf-rs = "0.25"
 libc = "0.2"
 plain = "0.2"
 time = { version = "0.3", features = ["formatting", "local-offset", "macros"]}
-clap = { version = "4.5.48", default-features = false, features = ["std", "derive"] }
+clap = { version = "4.5.49", default-features = false, features = ["std", "derive"] }
 structopt = "0.3"
 ctrlc = "3.4"
 object = "0.37"
