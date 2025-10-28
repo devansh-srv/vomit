@@ -16,5 +16,7 @@ clap = { version = "4.5.48", default-features = false, features = ["std", "deriv
 structopt = "0.3"
 ctrlc = "3.4"
 object = "0.37"
+serde = "1.0.228"
+reqwest = "0.12.24"
 [build-dependencies]
 libbpf-cargo = "0.25"
