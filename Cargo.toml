@@ -18,5 +18,7 @@ ctrlc = "3.4"
 object = "0.37"
 serde = "1.0.228"
 reqwest = "0.12.24"
+ratatui = "0.29.0"
+crossterm = "0.29.0"
 [build-dependencies]
 libbpf-cargo = "0.25"
