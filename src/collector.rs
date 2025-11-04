@@ -1,7 +1,15 @@
-use anyhow::Result;
 use std::collections::HashMap;
-use std::hash::Hash;
 use std::sync::{Arc, Mutex};
+
+#[derive(Debug, Clone)]
+pub struct SlowEvents {
+    pub duration_ms: f64,
+    pub operation: String,
+    pub tgid: u32,
+    pub pid: u32,
+    pub kernel_stack_id: i32,
+    pub user_stack_id: i32,
+}
 
 #[repr(C)]
 pub struct events {
@@ -12,11 +20,13 @@ pub struct events {
     pub size: u64, // payload size for I/O operations
     pub comm: [u8; 16],
     pub operation: [u8; 32],
+    pub kernel_stack_id: i32,
+    pub user_stack_id: i32,
 }
 pub struct Stats {
     pub total_events: u64,
     pub events_by_type: HashMap<String, u64>,
-    pub slowest_by_process: HashMap<String, (f64, String, u32, u32)>,
+    pub slowest_by_process: HashMap<String, SlowEvents>,
 }
 impl Stats {
     pub fn new() -> Self {
@@ -38,22 +48,38 @@ impl Stats {
         let duration_ms = event.duration_ns as f64 / 1_000_000.0;
         let tgid = event.tgid as u32;
         let pid = event.pid as u32;
+        let kernel_stack_id = event.kernel_stack_id;
+        let user_stack_id = event.user_stack_id;
         self.slowest_by_process
             .entry(comm)
-            .and_modify(|(max, _, _, _)| {
-                if duration_ms > *max {
-                    *max = duration_ms;
+            .and_modify(|e| {
+                if duration_ms > e.duration_ms {
+                    *e = SlowEvents {
+                        duration_ms,
+                        operation: op.clone(),
+                        tgid,
+                        pid,
+                        kernel_stack_id,
+                        user_stack_id,
+                    };
                 }
             })
-            .or_insert((duration_ms, op, tgid, pid));
+            .or_insert(SlowEvents {
+                duration_ms,
+                operation: op,
+                tgid,
+                pid,
+                kernel_stack_id,
+                user_stack_id,
+            });
     }
-    pub fn top_slow_processes(&self) -> Vec<(String, f64, String, u32, u32)> {
+    pub fn top_slow_processes(&self) -> Vec<(String, SlowEvents)> {
         let mut procs: Vec<_> = self
             .slowest_by_process
             .iter()
-            .map(|(name, (ms, op, tgid, pid))| (name.clone(), *ms, op.clone(), *tgid, *pid))
+            .map(|(name, event)| (name.clone(), event.clone()))
             .collect();
-        procs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        procs.sort_by(|a, b| b.1.duration_ms.partial_cmp(&a.1.duration_ms).unwrap());
         procs.truncate(10);
         procs
     }

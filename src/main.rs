@@ -20,13 +20,12 @@
 //     }
 // }
 mod collector;
+mod strace;
 mod tui;
 use anyhow::Result;
 use collector::{SharedStats, Stats};
 use libbpf_rs::RingBufferBuilder;
 use libbpf_rs::skel::{OpenSkel, Skel, SkelBuilder};
-use libc::exit;
-use serde::de::Expected;
 use std::mem::MaybeUninit;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -55,13 +54,17 @@ fn main() -> Result<()> {
         .expect("Failed to add ring buffer");
     let ringbuf = rb_builder.build().expect("Failed to build ring buffer");
     let collector_handle = thread::spawn(move || {
+        println!("Event collector thread started");
         loop {
-            ringbuf
-                .poll(Duration::from_millis(100))
-                .expect("Failed to poll ring buffer");
+            if let Err(e) = ringbuf.poll(Duration::from_millis(100)) {
+                eprintln!("Ring buffer poll error: {}", e);
+                break;
+            }
         }
+        println!("Event collector thread stopped");
     });
-    tui::run_tui(stats)?;
-    collector_handle.join().unwrap();
+    let stack_map = skel.maps.stack_traces;
+    tui::run_tui(stats, &stack_map)?;
+    // collector_handle.join().unwrap();
     Ok(())
 }
