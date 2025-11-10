@@ -21,6 +21,7 @@
 // }
 mod collector;
 mod strace;
+mod timeline;
 mod tui;
 use anyhow::Result;
 use collector::{SharedStats, Stats};
