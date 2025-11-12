@@ -7,7 +7,7 @@ PerfLens is a production-ready observability tool that captures slow I/O operati
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org/)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
-[![Build and publish](https://github.com/devansh-srv/vomit/actions/workflows/publish.yml/badge.svg)](https://github.com/devansh-srv/vomit/actions/workflows/publish.yml)
+[![Build and publish](https://github.com/devansh-srv/PerfLens/actions/workflows/publish.yml/badge.svg)](https://github.com/devansh-srv/PerfLens/actions/workflows/publish.yml)
 ![GitHub stars](https://img.shields.io/github/stars/devansh-srv/vomit?style=social)
 
 ---
