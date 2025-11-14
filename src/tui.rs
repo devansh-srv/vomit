@@ -1,3 +1,4 @@
+use crate::analysis::Analysis;
 use crate::collector::{SharedStats, SlowEvents, Stats};
 use crate::strace::{StackResolver, read_stack_from_map};
 use crate::timeline::{EventDetails, EventType, ProcessNode};
@@ -10,7 +11,7 @@ use crossterm::{
 };
 use libbpf_rs::Map;
 use ratatui::prelude::BlockExt;
-use ratatui::style::Styled;
+use ratatui::style::{Styled, Stylize};
 use ratatui::widgets::BorderType;
 use ratatui::widgets::Sparkline;
 use ratatui::{
@@ -22,6 +23,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
 };
 use std::io;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 enum View {
@@ -29,6 +31,7 @@ enum View {
     StackTrace,
     Timeline,
     ProcessTree,
+    Analysis,
 }
 
 pub struct TuiState {
@@ -51,7 +54,8 @@ fn format_timestamp(timestamp_ns: u64) -> String {
     let millis = (timestamp_ns % 1_000_000_000) / 1_000_000;
     format!("{}.{:03}", secs, millis)
 }
-pub fn run_tui(stats: SharedStats, stack_map: &Map) -> Result<()> {
+type SharedAnalyses = Arc<Mutex<Vec<Analysis>>>;
+pub fn run_tui(stats: SharedStats, analyses: SharedAnalyses, stack_map: &Map) -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
@@ -62,18 +66,20 @@ pub fn run_tui(stats: SharedStats, stack_map: &Map) -> Result<()> {
     loop {
         terminal.draw(|f| match state.view {
             View::StackTrace => render_stack_trace(f, &mut state, stack_map, &mut resolver),
-            View::Dashboard => render_dashboard(f, &stats, &mut state),
+            View::Dashboard => render_dashboard(f, &stats, &analyses, &mut state),
             View::Timeline => render_timeline(f, &stats, &mut state),
             View::ProcessTree => render_process_tree(f, &stats, &mut state),
+            View::Analysis => render_analysis(f, &analyses, &mut state),
         })?;
         if event::poll(Duration::from_millis(100))? {
             if let Ok(Event::Key(key)) = event::read() {
                 match key.code {
                     KeyCode::Char('q') => {
-                        if matches!(state.view, View::StackTrace) {
-                            state.view = View::Dashboard;
-                        } else {
+                        if matches!(state.view, View::Dashboard) {
                             break;
+                        } else {
+                            state.view = View::Dashboard;
+                            state.scroll = 0;
                         }
                     }
                     KeyCode::Char('s') | KeyCode::Enter => {
@@ -100,6 +106,10 @@ pub fn run_tui(stats: SharedStats, stack_map: &Map) -> Result<()> {
                         state.view = View::ProcessTree;
                         state.scroll = 0;
                     }
+                    KeyCode::Char('a') => {
+                        state.view = View::Analysis;
+                        state.scroll = 0;
+                    }
                     _ => {}
                 }
             }
@@ -109,15 +119,24 @@ pub fn run_tui(stats: SharedStats, stack_map: &Map) -> Result<()> {
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     Ok(())
 }
-fn render_dashboard(f: &mut Frame, stats: &SharedStats, state: &mut TuiState) {
+fn render_dashboard(
+    f: &mut Frame,
+    stats: &SharedStats,
+    analyses: &SharedAnalyses,
+    state: &mut TuiState,
+) {
     let stats = stats.lock().unwrap();
     let layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(3), Constraint::Min(0)])
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Min(0),
+            Constraint::Length(8),
+        ])
         .split(f.area());
     //header
     let header = Paragraph::new(
-        "PerfLens - eBPF Performance Monitor | 'q' quit |'s' stack trace | Enter: details",
+        "PerfLens | 'q' quit | 's' stack | 't' timeline | 'p' process tree | 'a' analysis | Enter: details",
     )
     .style(
         Style::default()
@@ -186,6 +205,50 @@ fn render_dashboard(f: &mut Frame, stats: &SharedStats, state: &mut TuiState) {
         )
         .style(Style::default().fg(Color::White));
     f.render_widget(list, main_layout[1]);
+    let analyses_lock = analyses.lock().unwrap();
+    if let Some(latest) = analyses_lock.last() {
+        let analysis_text = vec![
+            Line::from(vec![
+                Span::styled(
+                    "Latest AI Analysis ",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!("({})", latest.format_time()),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]),
+            Line::from(""),
+            Line::from(Span::raw(&latest.summary)),
+            Line::from(""),
+            Line::from(Span::styled(
+                format!(
+                    "{} issues identified | Press 'a' for details",
+                    latest.bottlenecks.len()
+                ),
+                Style::default().fg(Color::Yellow),
+            )),
+        ];
+        let analyses_widget = Paragraph::new(analysis_text)
+            .block(Block::default().title("AI Insights").borders(Borders::ALL))
+            .wrap(Wrap { trim: true });
+    } else {
+        let waiting_text = vec![
+            Line::from(""),
+            Line::from(Span::styled(
+                "Waiting for AI analysis... (runs every 30s)",
+                Style::default().fg(Color::DarkGray),
+            )),
+        ];
+
+        let waiting_widget = Paragraph::new(waiting_text)
+            .block(Block::default().title("AI Insights").borders(Borders::ALL))
+            .alignment(ratatui::layout::Alignment::Center);
+
+        f.render_widget(waiting_widget, layout[2]);
+    }
 }
 
 fn render_stack_trace(
@@ -489,4 +552,115 @@ fn render_process_node(lines: &mut Vec<Line>, stats: &Stats, node: &ProcessNode,
             render_process_node(lines, stats, child_node, depth + 1);
         }
     }
+}
+fn render_analysis(f: &mut Frame, analyses: &SharedAnalyses, state: &mut TuiState) {
+    let analyses = analyses.lock().unwrap();
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(3), Constraint::Min(0)])
+        .split(f.size());
+
+    let header = Paragraph::new("🤖 AI Performance Analysis | 'q' back | ↑↓ scroll")
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(Block::default().borders(Borders::ALL));
+    f.render_widget(header, chunks[0]);
+
+    if analyses.is_empty() {
+        let waiting_text = vec![
+            Line::from(""),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Waiting for first analysis...",
+                Style::default().fg(Color::Gray),
+            )),
+            Line::from(""),
+            Line::from(Span::raw("AI analysis runs every 30 seconds")),
+            Line::from(Span::raw("Make sure HF_API_TOKEN is set")),
+        ];
+
+        let paragraph = Paragraph::new(waiting_text)
+            .block(
+                Block::default()
+                    .title("No Analysis Yet")
+                    .borders(Borders::ALL),
+            )
+            .alignment(ratatui::layout::Alignment::Center);
+
+        f.render_widget(paragraph, chunks[1]);
+        return;
+    }
+
+    let mut lines = vec![];
+
+    // Show analyses in reverse order (newest first)
+    for (idx, analysis) in analyses.iter().enumerate().rev() {
+        lines.push(Line::from(vec![
+            Span::styled(
+                format!("Analysis #{} ", analyses.len() - idx),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("({})", analysis.format_time()),
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]));
+        lines.push(Line::from(""));
+
+        // Summary
+        lines.push(Line::from(Span::styled(
+            "Summary:",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )));
+        lines.push(Line::from(Span::raw(&analysis.summary)));
+        lines.push(Line::from(""));
+
+        // Bottlenecks
+        if !analysis.bottlenecks.is_empty() {
+            lines.push(Line::from(Span::styled(
+                "Issues Detected:",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            )));
+            for issue in &analysis.bottlenecks {
+                lines.push(Line::from(vec![Span::raw("  🔴 "), Span::raw(issue)]));
+            }
+            lines.push(Line::from(""));
+        }
+
+        // Recommendations
+        if !analysis.recommendations.is_empty() {
+            lines.push(Line::from(Span::styled(
+                "Recommendations:",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            )));
+            for rec in &analysis.recommendations {
+                lines.push(Line::from(vec![Span::raw("  ✅ "), Span::raw(rec)]));
+            }
+            lines.push(Line::from(""));
+        }
+
+        lines.push(Line::from("─".repeat(60)));
+        lines.push(Line::from(""));
+    }
+
+    let paragraph = Paragraph::new(lines)
+        .block(
+            Block::default()
+                .title("AI Analysis History")
+                .borders(Borders::ALL),
+        )
+        .wrap(Wrap { trim: false })
+        .scroll((state.scroll, 0));
+
+    f.render_widget(paragraph, chunks[1]);
 }
