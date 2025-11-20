@@ -17,8 +17,12 @@ structopt = "0.3"
 ctrlc = "3.4"
 object = "0.37"
 serde = "1.0.228"
-reqwest = "0.12.24"
+reqwest ={version = "0.12.24",features = ["json"]} 
 ratatui = "0.29.0"
 crossterm = "0.29.0"
+governor = "0.10.1"
+nonzero_ext = "0.3.0"
+tokio = {version ="1.48.0",features = ["rt-multi-thread"] }
+chrono = "0.4.42"
 [build-dependencies]
 libbpf-cargo = "0.25"
